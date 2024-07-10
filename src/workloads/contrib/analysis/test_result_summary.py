@@ -17,7 +17,7 @@ import time
 from tqdm import tqdm
 
 default_metrics_path = 'build/WorkloadOutput/CedarMetrics'
-default_metrics = ['throughput', 'timers.dur']
+default_metrics = ['throughput', 'timers.dur', 'errors']
 
 
 def path_to_string(path_component_array):
@@ -122,7 +122,7 @@ def summarize_diffed_data(args, actor_name, metrics_of_interest):
     Computes statistical measures on data points that have been pre-processed by diffing one
     recording from the previous recording.
 
-    Returns a mapping from metric name to a dictionary of summary statistics, e.g. 
+    Returns a mapping from metric name to a dictionary of summary statistics, e.g.
     {
         'timers.dur (measured in nanoseconds, displayed in milliseconds)': {
             count: 10,
@@ -141,8 +141,6 @@ def summarize_diffed_data(args, actor_name, metrics_of_interest):
             continue
 
         sorted_res = sorted(diffed_readings)
-        if is_measured_in_nanoseconds(metric_name):
-            metric_name += " (measured in nanoseconds, displayed in milliseconds)"
 
         def rnd(number):
             """Round a number to 4 significant digits, without going to scientific notation."""
@@ -156,12 +154,18 @@ def summarize_diffed_data(args, actor_name, metrics_of_interest):
 
         results[metric_name] = {
             "count": len(diffed_readings),
-            "average": rnd(statistics.mean(diffed_readings)),
-            "median": rnd(statistics.median_grouped(diffed_readings)),
-            "mode": mode,
-            "stddev": rnd(statistics.stdev(diffed_readings)) if len(diffed_readings) > 1 else None,
-            "[min, max]": [rnd(sorted_res[0]), rnd(sorted_res[-1])],
-            "sorted_raw_data": sorted_res
+            "average": float(rnd(statistics.mean(diffed_readings))),
+            "median": float(rnd(statistics.median_grouped(diffed_readings))),
+            "stddev": float(rnd(statistics.stdev(diffed_readings))) if len(diffed_readings) > 1 else None,
+            "p95": float(rnd(np.percentile(sorted_res, 95))),
+            "p99": float(rnd(np.percentile(sorted_res, 99))),
+            "p50": float(rnd(np.percentile(sorted_res, 50))),
+            "p90": float(rnd(np.percentile(sorted_res, 90))),
+            "p80": float(rnd(np.percentile(sorted_res, 80))),
+            "p75": float(rnd(np.percentile(sorted_res, 75))),
+            "p99.9": float(rnd(np.percentile(sorted_res, 99.9))),
+            "min": float(rnd(sorted_res[0])),
+            "max": float(rnd(sorted_res[-1])),
         }
         if args.verbose:
             print("Summarized", metric_name)
@@ -180,7 +184,6 @@ def summarize_readings(args, actor_name, metrics_of_interest, first_line, last_l
         if args.verbose:
             print("No first line, assuming this means there was no data.")
         return results
-
     if "throughput" in args.metrics:
         if "counters.ops" in last_line and "timers.dur" in last_line:
             n_ops = float(last_line["counters.ops"])
@@ -207,9 +210,31 @@ def summarize_readings(args, actor_name, metrics_of_interest, first_line, last_l
             n_errors = last_line["counters.errors"]
             if n_errors != 0:
                 print("WARNING non-zero error count: ", n_errors)
-                results["errors"] = {"total": n_errors}
+                # results["errors"] = {"ops": n_errors}
+                elapsed_seconds = (last_line["ts"] - first_line["ts"]) / 1000
+                if n_rows == 1:
+                    # If there is only a single recording, then assume that its
+                    # a synthetic recording and use that as the absolute elapsed
+                    # time.
+                    #
+                    # NOTE: `timers.dur` is expected to be in nanoseconds.
+                    elapsed_seconds = last_line["timers.dur"] / 1e9
+
+                results["errors"] = {
+                    "ops": n_errors,
+                    "seconds": elapsed_seconds,
+                    "ops per second": round(float('inf') if elapsed_seconds == 0 else n_errors / elapsed_seconds, 4),
+                }
             elif args.verbose:
                 print("errors: ", n_errors)
+        elif "gauges.failed" in last_line and last_line["gauges.failed"] == "false":
+            n_errors = float(last_line["counters.ops"])
+            elapsed_seconds = (last_line["ts"] - first_line["ts"]) / 1000
+            results["errors"] = {
+                    "ops": n_errors,
+                    "seconds": elapsed_seconds,
+                    "ops per second": round(float('inf') if elapsed_seconds == 0 else n_errors / elapsed_seconds, 4),
+                }
 
     return results
 
@@ -224,7 +249,6 @@ def process_json(args, actor_name, json_reader):
 
     # These we can calculate by just looking at the last row to get the totals.
     metrics_handled_later = ["throughput", "errors"]
-
     for metric_name in args.metrics:
         if metric_name in metrics_handled_later:
             continue
@@ -403,16 +427,14 @@ def main():
         tmp_file = convert_to_json(args, actor_file)
         with open(tmp_file, 'r') as json_reader:
             metric_summaries = process_json(args, actor_name, json_reader)
-
+            # print(metric_summaries)
             for (metric_name, summary_data) in metric_summaries.items():
                 global_summaries[actor_name][metric_name] = summary_data
-
-    for (actor_name, metrics) in global_summaries.items():
-        print(actor_name, "summary:")
-        for (metric_name, summary_data) in metrics.items():
-            print("\t%s:" % metric_name)
-            pretty_print_summary(args, summary_data, "\t\t")
-        print("\n")
+    results = {}
+    results["global_summaries"] = global_summaries
+    print("\n")
+    print(json.dumps(results))
+    print(json.dumps(results, indent=4))
 
 
 if __name__ == "__main__":
