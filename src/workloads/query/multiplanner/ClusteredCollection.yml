@@ -42,9 +42,11 @@ Actors:
           Database: *db
           Operations:
             - OperationName: RunCommand
+              ReportMetrics: false
               OperationCommand:
                 drop: *coll
             - OperationName: RunCommand
+              ReportMetrics: false
               OperationCommand:
                 create: *coll
                 clusteredIndex: { "key": { _id: 1 }, "unique": true }
@@ -413,9 +415,10 @@ AutoRun:
   - When:
       mongodb_setup:
         $eq:
-          - standalone-sbe
-          - standalone-80-feature-flags # At time of writing this will enable PM-3591.
-          - standalone-all-feature-flags # At time of writing this will enable PM-3591.
-          - standalone-classic-query-engine
+          - replica
+          - replica-all-feature-flags
+          - replica-query-engine-sbe
+          - replica-query-engine-classic
+          - replica-80-feature-flags
       branch_name:
-        $gte: v7.3
+        $gte: v8.0

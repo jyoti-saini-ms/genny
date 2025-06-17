@@ -30,6 +30,7 @@ Actors:
           Database: &Database test
           Operations:
             - OperationName: RunCommand
+              ReportMetrics: false
               OperationCommand:
                 createIndexes: &Collection Collection0
                 indexes:
@@ -155,10 +156,10 @@ AutoRun:
   - When:
       mongodb_setup:
         $eq:
-          - standalone
-          - standalone-80-feature-flags
-          - standalone-all-feature-flags
-          - standalone-classic-query-engine
-          - standalone-sbe
+          - replica
+          - replica-all-feature-flags
+          - replica-query-engine-sbe
+          - replica-query-engine-classic
+          - replica-80-feature-flags
       branch_name:
         $gte: v8.0

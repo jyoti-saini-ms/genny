@@ -5,7 +5,7 @@ import structlog
 import yaml
 
 TEAMS_DIR = "mothra/teams"
-TEAMS_FILES = ["cloud.yaml", "database.yaml", "rnd_dev_prod.yaml", "star.yaml"]
+TEAMS_FILES = ["cloud.yaml", "database.yaml", "devprod.yaml", "star.yaml"]
 TEAMS_FILES_PATHS = [f"{TEAMS_DIR}/{file}" for file in TEAMS_FILES]
 SLOG = structlog.get_logger(__name__)
 
@@ -33,7 +33,7 @@ class MothraService:
         mothra_dir = os.path.join(self.genny_repo_root, "mothra")
         if not os.path.exists(mothra_dir):
             raise FileNotFoundError(
-                "Mothra repository does not exist on your system. Please clone the repository in src/ using: git clone https://github.com/10gen/mothra.git"
+                "Mothra repository does not exist on your system. Please clone the repository in the root of your genny repo using: git clone https://github.com/10gen/mothra.git"
             )
 
         teams = []
