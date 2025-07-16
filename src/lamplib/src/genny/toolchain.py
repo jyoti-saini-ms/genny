@@ -217,10 +217,7 @@ class ToolchainDownloader(Downloader):
         else:
             prefix = self._linux_distro
         return (
-            "https://s3.amazonaws.com/mciuploads/genny-toolchain/"
-            "genny_toolchain_{}_{}/gennytoolchain.tgz".format(
-                prefix, ToolchainDownloader.TOOLCHAIN_BUILD_ID
-            )
+            "https://gennytoolchain.blob.core.windows.net/genny/gennytool/gennytoolchain.tgz"
         )
 
     def _can_ignore(self):
