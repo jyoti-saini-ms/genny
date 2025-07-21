@@ -326,10 +326,7 @@ class CuratorDownloader(Downloader):
     def _get_url(self):
         version = CuratorDownloader.CURATOR_VERSION
         return (
-            "https://s3.amazonaws.com/boxes.10gen.com/build/curator/"
-            "curator-dist-{distro}-{build}.tar.gz".format(
-                distro=self._curator_distro, build=version
-            )
+            "https://gennytoolchain.blob.core.windows.net/genny/curator/curator.tar.gz"
         )
 
     def _can_ignore(self):
